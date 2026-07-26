@@ -23,6 +23,18 @@ classDiagram
 | `#` | Protected |
 | `~` | Package/Internal |
 
+## Naming Conventions
+
+| Element | Convention | Example |
+|---------|-----------|---------|
+| Class names | **PascalCase**, singular | `UserService`, `OrderItem` |
+| Class IDs | alphanumeric + `_`/`-` only | `UserService`, `order-item` |
+| Attributes | **camelCase** with type prefix | `+String email`, `-int count` |
+| Methods | **camelCase** with parens | `+login()`, `+findById(id String)` |
+| Relationship labels | **lowercase verb phrases** | `: places`, `: manages` |
+| Annotations | `<<PascalCase>>` | `<<Interface>>`, `<<Abstract>>` |
+| Generics | **tilde** not angle brackets | `+list~String~ items` (NOT `<String>`) |
+
 ## Data Types
 
 ```mermaid
@@ -51,6 +63,19 @@ classDiagram
 
 ## Relationships
 
+### All 8 Relationship Types
+
+| Syntax | UML Type | Use When |
+|--------|----------|----------|
+| `<|--` | **Inheritance** (Generalization) | `Car` is-a `Vehicle` |
+| `*--` | **Composition** | `Order` owns `OrderItem` (part dies with whole) |
+| `o--` | **Aggregation** | `Team` has `Player` (player exists independently) |
+| `-->` | **Association** | `User` uses `Service` (structural, long-lived) |
+| `--` | **Link (solid)** | Generic relationship when type is ambiguous |
+| `..>` | **Dependency** | `Controller` depends-on `Repository` (transient/weak) |
+| `..|>` | **Realization** | `ServiceImpl` implements `<<interface>> Service` |
+| `..` | **Link (dashed)** | Generic weak relationship |
+
 ### Inheritance (Generalization)
 ```mermaid
 classDiagram
@@ -73,6 +98,7 @@ classDiagram
 
 ### Association (Relationship)
 ```mermaid
+classDiagram
     Teacher --> Student : teaches
 ```
 
@@ -92,6 +118,17 @@ classDiagram
     }
     User implements Serializable
 ```
+
+## Cardinality
+
+```mermaid
+classDiagram
+    Customer "1" --> "0..*" Order : places
+    Order "1" --> "1..*" OrderItem : contains
+    OrderItem "0..*" --> "1" Product : references
+```
+
+Cardinality labels: `"1"`, `"*"`, `"0..1"`, `"1..*"`, `"0..*"`
 
 ## Annotations
 
@@ -145,6 +182,8 @@ classDiagram
     Dialog --> ApiService : calls
 ```
 
+Hierarchical namespaces with dot notation: `namespace A.B.C`
+
 ## Notes
 
 ```mermaid
@@ -157,14 +196,23 @@ classDiagram
     note right of User "User entity"
 ```
 
-## Cardinality
+## Diagram Size Management
 
-```mermaid
-classDiagram
-    Customer "1" --> "0..*" Order : places
-    Order "1" --> "1..*" OrderItem : contains
-    OrderItem "0..*" --> "1" Product : references
+### When to Split
+- **>20-30 classes**: Mermaid's dagre layout struggles (overlapping, poor spacing)
+- Split by bounded context, module, or domain area
+
+### Split Strategy
 ```
+docs/diagrams/
+├── domain-users.mmd
+├── domain-orders.mmd
+├── domain-payments.mmd
+└── infrastructure.mmd
+```
+
+### Hiding Members
+When full detail isn't needed, hide empty members box in config.
 
 ## Complete Example
 
@@ -227,3 +275,5 @@ classDiagram
 4. **Escape special chars** - Use `\"` for quotes in notes
 5. **Generic syntax** - Use `~` for generics: `List~String~`
 6. **Namespace blocks** - Use `namespace Name { }` with proper braces
+7. **Quote special characters** - Always quote labels with special characters: `["Label with (parens)"]`
+8. **Avoid reserved words** - Don't use `end`, `default`, `style` as node IDs (or quote them)

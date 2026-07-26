@@ -1,11 +1,12 @@
 ---
 name: codebase-class-diagram
-description: Use when user needs a complete class diagram for a codebase - generates Mermaid diagrams with all data structures, APIs, and module groupings across all languages
+description: Load when user asks for architecture overview, class diagram, data structure visualization, or needs to understand codebase structure. Triggers on "diagram", "architecture", "class hierarchy", "data structures", "visualize code".
+version: 1.0.0
 ---
 
 # Codebase Class Diagram Generator
 
-Generate complete class diagrams depicting data structures and communication across an entire codebase.
+Generate complete Mermaid class diagrams depicting data structures and communication across an entire codebase.
 
 ## Overview
 
@@ -14,14 +15,34 @@ Creates Mermaid class diagrams showing:
 - Internal APIs and public variables
 - Module JSON APIs and external interfaces
 - Communication patterns between structures
-- Semantic grouping into modules (ENGINE, UI, SERVICES, etc.)
+- Semantic grouping into modules
 
-## When to Use
+## Gotchas (Read First)
 
-- User asks for architecture overview or class diagram
-- Need to visualize codebase structure across languages
-- Documentation requires visual data structure representation
-- Refactoring needs clear dependency visualization
+### Mermaid-Specific
+- **Generic syntax uses tildes**: `List~String~` NOT `List<String>` — angle brackets break parsing
+- **Semicolons required**: Every property/method line must end with `;`
+- **Class names must be unique** across the entire diagram
+- **Relationships after classes**: Define all classes first, then relationships
+- **Escape quotes**: Use `\"` for quotes in notes
+
+### Language-Specific
+- **Python decorators** (`@staticmethod`): Map to stereotypes `<<static>>`, `<<property>>`
+- **Java annotations** (`@Override`): Map to stereotypes `<<override>>`, `<<serializable>>`
+- **TypeScript generics**: Show type parameters: `+fetch~T~() Response~T~`
+- **TypeScript interfaces**: Use `<<interface>>` stereotype, dashed realization `..|>`
+- **Python dataclasses/Pydantic**: Treat as regular classes, extract field types from annotations
+
+### Diagram Size
+- **Hard limit**: Mermaid struggles beyond ~30 nodes (overlapping, poor layout)
+- **Split strategy**: One diagram per bounded context/module (15-25 classes max)
+- **Filter by default**: Show only public API, hide internal implementations
+
+### Noise Filtering
+- **Exclude**: Test files, auto-generated code (protobuf, OpenAPI stubs, ORM models)
+- **Exclude**: Boilerplate (getters/setters, `__init__` with only `self.x = x`)
+- **Exclude**: Single-function modules, string constants, config values
+- **Include**: Public API surface, class relationships, interface contracts, abstract classes
 
 ## Process
 
@@ -45,56 +66,76 @@ digraph determine_path {
 }
 ```
 
-### 2. Analyze Codebase
+### 2. Detect Languages
 
-Use explore agents to scan for:
+Scan file extensions to determine languages present:
+- `.py` → Python
+- `.java` → Java
+- `.ts`, `.tsx` → TypeScript
+- `.cs` → C#
+- `.go` → Go
+- `.rs` → Rust
+- `.cpp`, `.h` → C++
 
-**Data Structures:**
-- Classes (all methods, properties, constructors)
-- Structs and records
+Use appropriate parsers for each language.
+
+### 3. Analyze Codebase (Multi-Pass)
+
+**Pass 1 — File Identification:**
+- Identify source files (exclude tests, generated code)
+- Determine dependency weight (files imported by many others = more significant)
+
+**Pass 2 — Structure Extraction:**
+- Classes, structs, records
 - Interfaces and abstract types
 - Enums and constants
 - Type aliases and generics
 
-**APIs:**
-- Public methods and their signatures
+**Pass 3 — Member Extraction:**
+- Public methods and signatures
 - Internal module interfaces
-- JSON API endpoints and schemas
 - Event handlers and callbacks
-- External library integrations
 
-**Communication:**
-- Inheritance hierarchies
-- Composition relationships
-- Dependencies (imports/requires)
-- Event flows
-- Data passing patterns
+**Pass 4 — Relationship Mapping:**
+- Inheritance hierarchies (`<|--`)
+- Composition relationships (`*--`)
+- Aggregation (`o--`)
+- Dependencies (`..>`)
+- Interface implementation (`..|>`)
 
-### 3. Categorize into Modules
+**Pass 5 — Semantic Analysis:**
+- Group into logical modules (ENGINE, UI, SERVICES, etc.)
+- Determine architectural significance
+
+### 4. Categorize into Modules
 
 Group semantically similar structures into logical modules. See [module-categorization.md](module-categorization.md) for grouping rules.
 
-Common module categories:
-- **ENGINE** - Core business logic, data processing
-- **UI** - User interface components, views
-- **SERVICES** - External integrations, APIs
-- **DATA** - Database models, repositories
-- **UTILS** - Helpers, shared utilities
-- **CONFIG** - Configuration, settings
-
-### 4. Generate Mermaid Diagram
+### 5. Generate Mermaid Diagram
 
 Follow strict Mermaid syntax. See [mermaid-syntax-reference.md](mermaid-syntax-reference.md) for complete syntax guide.
+
+**Relationship Types:**
+| Syntax | UML Type | Use When |
+|--------|----------|----------|
+| `<|--` | Inheritance | `Car` is-a `Vehicle` |
+| `*--` | Composition | `Order` owns `OrderItem` (part dies with whole) |
+| `o--` | Aggregation | `Team` has `Player` (player exists independently) |
+| `-->` | Association | `User` uses `Service` (structural, long-lived) |
+| `--` | Link (solid) | Generic relationship when type is ambiguous |
+| `..>` | Dependency | `Controller` depends-on `Repository` (transient/weak) |
+| `..|>` | Realization | `ServiceImpl` implements `<<interface>> Service` |
+| `..` | Link (dashed) | Generic weak relationship |
 
 **Output requirements:**
 - Use `classDiagram` directive
 - Organize by modules using namespaces
-- Show all relationships (inheritance, composition, dependency)
+- Show all applicable relationships with meaningful labels
 - Include visibility modifiers (+, -, #, ~)
 - Document methods and properties
-- Use meaningful relationship labels
+- Add cardinality ("1", "*", "0..1") where count matters
 
-### 5. Request Output Path
+### 6. Request Output Path
 
 Ask user for output path:
 ```
@@ -102,7 +143,7 @@ Where should the diagram be saved?
 Example: ./docs/class-diagram.mmd
 ```
 
-### 6. Validate and Render
+### 7. Validate and Render
 
 ```bash
 # Install mermaid-cli if not present
@@ -120,12 +161,13 @@ If validation fails:
 2. Fix the issue
 3. Re-validate until successful
 
-### 7. Present Results
+### 8. Present Results
 
 Show user:
 1. Absolute path to `.mmd` file
 2. Absolute path to `.svg` file
 3. Brief summary of what's included
+4. Any limitations (diagram size, filtered content)
 
 ## Quick Reference
 
@@ -134,14 +176,6 @@ Show user:
 | Validate Mermaid | `mmdc -i file.mmd -o /dev/null` |
 | Render SVG | `mmdc -i file.mmd -o file.svg -t default -b white` |
 | Install CLI | `npm install -g @mermaid-js/mermaid-cli` |
-
-## Common Mistakes
-
-1. **Missing semicolons** - Each property/method needs `;`
-2. **Invalid visibility** - Use only `+`, `-`, `#`, `~`
-3. **Broken relationships** - Check arrow syntax: `|--`, `*--`, `o--`, `-->`
-4. **Namespace errors** - Use `namespace ModuleName { }` blocks
-5. **Special characters** - Escape quotes with `\"`
 
 ## Examples
 
